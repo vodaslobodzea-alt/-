@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Реестр заказ-нарядов по вывозу ЖБО — г. Слободзея</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --indigo:#2e3192;
+    --blue:#29abe2;
+    --blue-light:#eaf6fc;
+    --indigo-light:#eceafb;
+    --border:#c9ccd8;
+    --text:#1c2033;
+    --muted:#6b7086;
+    --extra-col:#fff6e6;
+    --extra-col-head:#f2a900;
+    --ok:#2e8b57;
+    --bad:#c0392b;
+    --bg:#f4f5f9;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI', Arial, sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+  header.app-header{
+    background:linear-gradient(90deg, var(--indigo) 0%, #3a3fb0 100%);
+    color:#fff;
+    padding:14px 24px;
+    display:flex;
+    align-items:center;
+    gap:18px;
+    flex-wrap:wrap;
+    box-shadow:0 2px 8px rgba(0,0,0,.15);
+  }
+  header.app-header img.logo{
+    height:44px;
+    background:#fff;
+    padding:4px 10px;
+    border-radius:6px;
+  }
+  header.app-header .titles h1{
+    margin:0;
+    font-size:18px;
+    font-weight:600;
+  }
+  header.app-header .titles p{
+    margin:2px 0 0;
+    font-size:12.5px;
+    opacity:.85;
+  }
+  main{
+    max-width:1600px;
+    margin:0 auto;
+    padding:18px 20px 60px;
+  }
+  .panel{
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:16px 18px;
+    margin-bottom:16px;
+  }
+  .panel h2{
+    margin:0 0 10px;
+    font-size:14px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--indigo);
+  }
+  .settings-row{
+    display:flex;
+    gap:22px;
+    flex-wrap:wrap;
+    align-items:flex-end;
+  }
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    font-size:12.5px;
+    color:var(--muted);
+  }
+  .field input, .field select{
+    font-size:13px;
+    padding:6px 8px;
+    border:1px solid var(--border);
+    border-radius:6px;
+    min-width:220px;
+  }
+  .toolbar{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:14px;
+  }
+  button{
+    cursor:pointer;
+    border:none;
+    border-radius:7px;
+    padding:9px 14px;
+    font-size:13px;
+    font-weight:600;
+    transition:filter .15s;
+  }
+  button:hover{filter:brightness(1.07);}
+  button.primary{background:var(--indigo); color:#fff;}
+  button.accent{background:var(--blue); color:#fff;}
+  button.ghost{background:#fff; color:var(--indigo); border:1px solid var(--indigo);}
+  button.danger{background:#fdecea; color:var(--bad);}
+  button.small{padding:4px 8px; font-size:11.5px; border-radius:5px;}
+  .table-wrap{
+    overflow-x:auto;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:#fff;
+  }
+  table.registry{
+    border-collapse:collapse;
+    width:100%;
+    min-width:1500px;
+    font-size:12.5px;
+  }
+  table.registry thead tr.group th{
+    background:var(--indigo);
+    color:#fff;
+    font-size:11px;
+    padding:5px;
+    border:1px solid #3a3fb0;
+  }
+  table.registry thead tr.group th.extra-head{
+    background:var(--extra-col-head);
+  }
+  table.registry thead tr.cols th{
+    background:var(--indigo-light);
+    color:var(--indigo);
+    padding:7px 6px;
+    border:1px solid var(--border);
+    font-weight:600;
+    position:sticky;
+    top:0;
+  }
+  table.registry thead tr.cols th.extra-head{
+    background:var(--extra-col);
+    color:#8a5a00;
+  }
+  table.registry td{
+    border:1px solid var(--border);
+    padding:2px;
+    vertical-align:middle;
+  }
+  table.registry td.extra{
+    background:var(--extra-col);
+  }
+  table.registry input, table.registry select{
+    width:100%;
+    border:none;
+    padding:6px 5px;
+    font-size:12.5px;
+    background:transparent;
+    font-family:inherit;
+  }
+  table.registry input:focus, table.registry select:focus{
+    outline:2px solid var(--blue);
+    background:#fff;
+    border-radius:4px;
+  }
+  table.registry input[type="number"]{ text-align:right; }
+  table.registry td.actions{
+    white-space:nowrap;
+    text-align:center;
+  }
+  select.status option[value="опл"]{color:var(--ok);}
+  select.status option[value="не опл"]{color:var(--bad);}
+  td.status-опл select{color:var(--ok); font-weight:600;}
+  td.status-неопл select{color:var(--bad); font-weight:600;}
+  tfoot td{
+    background:var(--indigo-light);
+    font-weight:700;
+    padding:8px 6px;
+    border:1px solid var(--border);
+    font-size:12.5px;
+  }
+  .row-check{ text-align:center; }
+  .hint{
+    font-size:12px;
+    color:var(--muted);
+    margin-top:8px;
+    line-height:1.5;
+  }
+  .badge{
+    display:inline-block;
+    background:var(--extra-col-head);
+    color:#fff;
+    font-size:10px;
+    padding:1px 6px;
+    border-radius:4px;
+    margin-left:6px;
+    vertical-align:middle;
+  }
+  footer.app-footer{
+    text-align:center;
+    color:var(--muted);
+    font-size:11.5px;
+    padding:18px;
+  }
+  @media print{
+    header.app-header, .toolbar, .panel.settings, .hint, td.actions, th.actions-head, .row-check, th.check-head{
+      display:none !important;
+    }
+    body{background:#fff;}
+    .table-wrap{border:none;}
+    table.registry{min-width:0; width:100%; font-size:10px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <img class="logo" id="headerLogo" src="" alt="Логотип ГУП «Водоснабжение и водоотведение»">
+  <div class="titles">
+    <h1>Реестр заказ-нарядов по вывозу ЖБО — участок г. Слободзея</h1>
+    <p>ГУП «Водоснабжение и водоотведение» ПМР · филиал г. Слободзея</p>
+  </div>
+</header>
+
+<main>
+
+  <div class="panel settings">
+    <h2>Параметры для актов</h2>
+    <div class="settings-row">
+      <div class="field">
+        <label for="setExecutor">Исполнитель работ (Ф.И.О.)</label>
+        <input id="setExecutor" type="text" placeholder="Панашел В. С.">
+      </div>
+      <div class="field">
+        <label for="setPrice">Цена по умолчанию, руб./м³</label>
+        <input id="setPrice" type="number" step="0.01" value="141.14">
+      </div>
+      <div class="field">
+        <label for="setService">Наименование услуги (в акте)</label>
+        <input id="setService" type="text" value="Услуги по сбору и вывозу жидких бытовых отходов">
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button class="ghost small" onclick="applyDefaultsToAll()">Применить цену ко всем строкам</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="primary" onclick="addRow()">+ Добавить строку</button>
+    <button class="danger" onclick="deleteSelected()">Удалить выбранные</button>
+    <button class="accent" onclick="exportExcel()">Экспорт в Excel (.xlsx)</button>
+    <button class="ghost" onclick="document.getElementById('importFile').click()">Импорт из Excel</button>
+    <input type="file" id="importFile" accept=".xlsx,.xls" style="display:none" onchange="importExcel(event)">
+    <button class="ghost" onclick="window.print()">Печать реестра</button>
+    <button class="primary" onclick="generateActsWord(getSelectedOrAll())">📄 Сформировать акты (Word) — выбранные/все</button>
+    <button class="ghost" onclick="previewActs(getSelectedOrAll())">Предпросмотр актов</button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="registry">
+      <thead>
+        <tr class="group">
+          <th colspan="6"></th>
+          <th colspan="3" class="extra-head">Дополнительно — для формирования акта</th>
+          <th colspan="4"></th>
+        </tr>
+        <tr class="cols">
+          <th class="check-head"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
+          <th>Заказ-наряд №</th>
+          <th>Дата получения</th>
+          <th>Населённый пункт</th>
+          <th>Адрес</th>
+          <th>Ф.И.О. заказчика</th>
+          <th class="extra-head">Лиц. счёт</th>
+          <th class="extra-head">Кол-во, м³</th>
+          <th class="extra-head">Цена, руб/м³</th>
+          <th>Телефон</th>
+          <th>Сбор, вывоз и утилизация ЖБО, руб.</th>
+          <th>Статус оплаты</th>
+          <th>Дата закрытия</th>
+          <th class="actions-head">Действия</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2" id="footCount">Всего строк: 0</td>
+          <td colspan="7"></td>
+          <td id="footSum">Итого, руб.: 0.00</td>
+          <td id="footPaid">Оплачено: 0</td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <p class="hint">
+    Колонки с меткой «доп. для акта» <span class="badge">доп.</span> — лицевой счёт, количество (м³) и цена (руб/м³) — не входят в исходный
+    формат реестра ГУП, добавлены для автоматического расчёта и заполнения актов о выполнении работ. Сумма пересчитывается
+    автоматически как «Кол-во × Цена»; при ручном изменении суммы количество пересчитывается в обратную сторону.
+    Все данные сохраняются в этом браузере автоматически (localStorage) — при открытии файла на другом компьютере
+    воспользуйтесь экспортом/импортом Excel для переноса данных. Файл логотипа <b>ЛОГО.png</b> должен лежать
+    в той же папке, что и этот HTML-файл (рядом, в «корневой папке») — иначе логотип не отобразится ни в шапке
+    реестра, ни в сформированных актах.
+  </p>
+
+</main>
+
+<footer class="app-footer">
+  Цифровой Водоканал ПМР · Реестр заказ-нарядов ЖБО · г. Слободзея
+</footer>
+
+<script>
+/* ============ ЛОГОТИП (base64, встроен в файл) ============ */
+const LOGO_DATA_URI = "ЛОГО.png"; // логотип лежит рядом с этим HTML-файлом
+document.getElementById('headerLogo').src = LOGO_DATA_URI;
+
+/* ============ ДАННЫЕ ============ */
+const STORAGE_KEY = 'zhbo_registry_slobodzeya_v1';
+const SETTINGS_KEY = 'zhbo_registry_settings_v1';
+
+let rows = [];
+let nextId = 1;
+
+function blankRow(orderNo){
+  const price = parseFloat(document.getElementById('setPrice')?.value) || 141.14;
+  return {
+    id: nextId++,
+    orderNo: orderNo ?? '',
+    dateReceived: '',
+    locality: '',
+    address: '',
+    fio: '',
+    account: '',
+    qty: '',
+    price: price,
+    phone: '',
+    sum: '',
+    status: 'не опл',
+    dateClosed: ''
+  };
+}
+
+function loadData(){
+  const saved = localStorage.getItem(STORAGE_KEY);
+  const settings = localStorage.getItem(SETTINGS_KEY);
+  if(settings){
+    try{
+      const s = JSON.parse(settings);
+      document.getElementById('setExecutor').value = s.executor || '';
+      document.getElementById('setPrice').value = s.price || 141.14;
+      document.getElementById('setService').value = s.service || 'Услуги по сбору и вывозу жидких бытовых отходов';
+    }catch(e){}
+  }
+  if(saved){
+    try{
+      rows = JSON.parse(saved);
+      nextId = Math.max(0, ...rows.map(r=>r.id||0)) + 1;
+    }catch(e){ rows = []; }
+  }
+  if(rows.length === 0){
+    // Пример из скриншота — для наглядности
+    rows.push(Object.assign(blankRow(1), {
+      dateReceived:'2025-03-10', locality:'с.Владимировка', address:'ул. Пионерская, 6',
+      fio:'Киреев А.И.', phone:'779 57022', qty:2.34, price:141.14, sum:330.73,
+      status:'опл', dateClosed:'2025-03-11'
+    }));
+    rows.push(Object.assign(blankRow(2), {
+      dateReceived:'2025-03-27', locality:'г.Слободзея', address:'ул.К. Маркса 78',
+      fio:'Гунько Т.А.', phone:'778 43712', qty:2.34, price:141.14, sum:330.73,
+      status:'опл', dateClosed:'2025-03-31'
+    }));
+    nextId = 3;
+  }
+}
+
+function saveData(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+    executor: document.getElementById('setExecutor').value,
+    price: document.getElementById('setPrice').value,
+    service: document.getElementById('setService').value
+  }));
+}
+
+/* ============ РЕНДЕР ТАБЛИЦЫ ============ */
+function fmtMoney(v){
+  const n = parseFloat(v);
+  return isNaN(n) ? '' : n.toFixed(2);
+}
+
+function render(){
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  rows.forEach((r, idx) => {
+    const tr = document.createElement('tr');
+    const statusClass = r.status === 'опл' ? 'status-опл' : 'status-неопл';
+    tr.innerHTML = `
+      <td class="row-check"><input type="checkbox" class="rowchk" data-id="${r.id}"></td>
+      <td><input type="text" value="${esc(r.orderNo)}" onchange="upd(${r.id},'orderNo',this.value)"></td>
+      <td><input type="date" value="${esc(r.dateReceived)}" onchange="upd(${r.id},'dateReceived',this.value)"></td>
+      <td><input type="text" value="${esc(r.locality)}" onchange="upd(${r.id},'locality',this.value)" placeholder="с. / г."></td>
+      <td><input type="text" value="${esc(r.address)}" onchange="upd(${r.id},'address',this.value)" placeholder="ул., дом"></td>
+      <td><input type="text" value="${esc(r.fio)}" onchange="upd(${r.id},'fio',this.value)"></td>
+      <td class="extra"><input type="text" value="${esc(r.account)}" onchange="upd(${r.id},'account',this.value)" placeholder="л/с"></td>
+      <td class="extra"><input type="number" step="0.01" value="${esc(r.qty)}" onchange="updQty(${r.id},this.value)"></td>
+      <td class="extra"><input type="number" step="0.01" value="${esc(r.price)}" onchange="updPrice(${r.id},this.value)"></td>
+      <td><input type="text" value="${esc(r.phone)}" onchange="upd(${r.id},'phone',this.value)"></td>
+      <td><input type="number" step="0.01" value="${esc(r.sum)}" onchange="updSum(${r.id},this.value)"></td>
+      <td class="${statusClass}">
+        <select class="status" onchange="upd(${r.id},'status',this.value)">
+          <option value="не опл" ${r.status==='не опл'?'selected':''}>не опл</option>
+          <option value="опл" ${r.status==='опл'?'selected':''}>опл</option>
+        </select>
+      </td>
+      <td><input type="date" value="${esc(r.dateClosed)}" onchange="upd(${r.id},'dateClosed',this.value)"></td>
+      <td class="actions">
+        <button class="ghost small" onclick="generateActsWord([findRow(${r.id})])">Акт</button>
+        <button class="danger small" onclick="deleteRow(${r.id})">✕</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  updateFooter();
+  saveData();
+}
+
+function esc(v){
+  if(v === undefined || v === null) return '';
+  return String(v).replace(/"/g,'&quot;');
+}
+
+function findRow(id){ return rows.find(r=>r.id===id); }
+
+function upd(id, field, value){
+  const r = findRow(id);
+  if(r){ r[field] = value; saveData(); if(field==='status') render(); }
+}
+
+function updQty(id, value){
+  const r = findRow(id);
+  if(!r) return;
+  r.qty = value === '' ? '' : parseFloat(value);
+  const price = parseFloat(r.price) || 0;
+  if(r.qty !== '' && price){ r.sum = Math.round(r.qty*price*100)/100; }
+  render();
+}
+function updPrice(id, value){
+  const r = findRow(id);
+  if(!r) return;
+  r.price = value === '' ? '' : parseFloat(value);
+  const qty = parseFloat(r.qty) || 0;
+  if(qty && r.price !== ''){ r.sum = Math.round(qty*r.price*100)/100; }
+  render();
+}
+function updSum(id, value){
+  const r = findRow(id);
+  if(!r) return;
+  r.sum = value === '' ? '' : parseFloat(value);
+  const price = parseFloat(r.price) || 0;
+  if(price && r.sum !== ''){ r.qty = Math.round((r.sum/price)*100)/100; }
+  render();
+}
+
+function updateFooter(){
+  document.getElementById('footCount').textContent = `Всего строк: ${rows.length}`;
+  const total = rows.reduce((s,r)=> s + (parseFloat(r.sum)||0), 0);
+  document.getElementById('footSum').textContent = `Итого, руб.: ${total.toFixed(2)}`;
+  const paid = rows.filter(r=>r.status==='опл').length;
+  document.getElementById('footPaid').textContent = `Оплачено: ${paid} из ${rows.length}`;
+}
+
+/* ============ ДЕЙСТВИЯ СО СТРОКАМИ ============ */
+function addRow(){
+  const maxOrder = rows.reduce((m,r)=> Math.max(m, parseInt(r.orderNo)||0), 0);
+  rows.push(blankRow(maxOrder+1));
+  render();
+}
+function deleteRow(id){
+  if(!confirm('Удалить строку из реестра?')) return;
+  rows = rows.filter(r=>r.id!==id);
+  render();
+}
+function deleteSelected(){
+  const ids = getSelectedIds();
+  if(ids.length===0){ alert('Выберите строки для удаления (флажки слева).'); return; }
+  if(!confirm(`Удалить выбранные строки (${ids.length})?`)) return;
+  rows = rows.filter(r=>!ids.includes(r.id));
+  render();
+}
+function toggleAll(cb){
+  document.querySelectorAll('.rowchk').forEach(el=> el.checked = cb.checked);
+}
+function getSelectedIds(){
+  return Array.from(document.querySelectorAll('.rowchk:checked')).map(el=>parseInt(el.dataset.id));
+}
+function getSelectedOrAll(){
+  const ids = getSelectedIds();
+  const list = ids.length ? rows.filter(r=>ids.includes(r.id)) : rows.slice();
+  return list;
+}
+function applyDefaultsToAll(){
+  const price = parseFloat(document.getElementById('setPrice').value) || 141.14;
+  rows.forEach(r=>{
+    r.price = price;
+    const qty = parseFloat(r.qty)||0;
+    if(qty) r.sum = Math.round(qty*price*100)/100;
+  });
+  render();
+}
+
+/* ============ EXCEL ЭКСПОРТ / ИМПОРТ ============ */
+function exportExcel(){
+  const header = [
+    'Заказ наряд №','Дата получения','Населённый пункт','Адрес','Ф.И.О. заказчика',
+    'Лиц. счёт','Кол-во, м³','Цена, руб/м³','Телефон',
+    'Сбор, вывоз и утилизация ЖБО/ руб.','Статус оплаты','Дата закрытия'
+  ];
+  const data = rows.map(r=>[
+    r.orderNo, fmtDateRu(r.dateReceived), r.locality, r.address, r.fio,
+    r.account, r.qty, r.price, r.phone, r.sum, r.status, fmtDateRu(r.dateClosed)
+  ]);
+  const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
+  ws['!cols'] = [{wch:10},{wch:12},{wch:16},{wch:22},{wch:20},{wch:14},{wch:10},{wch:10},{wch:14},{wch:16},{wch:12},{wch:12}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'ЖБО заказы');
+  XLSX.writeFile(wb, 'Реестр_заказ-нарядов_ЖБО_Слободзея.xlsx');
+}
+
+function fmtDateRu(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  if(!y||!m||!d) return iso;
+  return `${d}.${m}.${y}`;
+}
+function parseDateRu(v){
+  if(!v) return '';
+  const s = String(v).trim();
+  const m = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/);
+  if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return '';
+}
+
+function importExcel(evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    const wb = XLSX.read(e.target.result, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    let startRow = 0;
+    // пропускаем строки заголовка (ищем первую строку, где 1-я ячейка — число)
+    for(let i=0;i<data.length;i++){
+      if(data[i][0] !== '' && !isNaN(parseFloat(data[i][0]))){ startRow = i; break; }
+    }
+    const imported = [];
+    for(let i=startRow;i<data.length;i++){
+      const row = data[i];
+      if(!row || row.every(c=>c==='')) continue;
+      const price = parseFloat(row[7]) || parseFloat(document.getElementById('setPrice').value) || 141.14;
+      imported.push({
+        id: nextId++,
+        orderNo: row[0] ?? '',
+        dateReceived: parseDateRu(row[1]),
+        locality: row[2] ?? '',
+        address: row[3] ?? '',
+        fio: row[4] ?? '',
+        account: row[5] ?? '',
+        qty: row[6] !== '' ? parseFloat(row[6]) : '',
+        price: price,
+        phone: row[8] ?? '',
+        sum: row[9] !== '' ? parseFloat(row[9]) : '',
+        status: row[10] || 'не опл',
+        dateClosed: parseDateRu(row[11])
+      });
+    }
+    if(imported.length){
+      rows = imported;
+      render();
+      alert(`Импортировано строк: ${imported.length}`);
+    } else {
+      alert('Не удалось распознать данные в файле.');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  evt.target.value = '';
+}
+
+/* ============ ГЕНЕРАЦИЯ АКТОВ ============ */
+function actHtml(r){
+  const executor = document.getElementById('setExecutor').value || '__________________';
+  const service = document.getElementById('setService').value || 'Услуги по сбору и вывозу жидких бытовых отходов';
+  const dateForAct = r.dateClosed || r.dateReceived || '';
+  let day='__', month='______', year='20__';
+  if(dateForAct){
+    const [y,m,d] = dateForAct.split('-');
+    const months = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+    day = d; month = months[parseInt(m,10)-1] || month; year = y;
+  }
+  const qty = r.qty !== '' && r.qty !== undefined ? parseFloat(r.qty).toFixed(2) : '____';
+  const price = r.price !== '' && r.price !== undefined ? parseFloat(r.price).toFixed(2) : '____';
+  const sum = r.sum !== '' && r.sum !== undefined ? parseFloat(r.sum).toFixed(2) : '____';
+  const addressFull = [r.locality, r.address].filter(Boolean).join(', ');
+  return `
+  <table class="act-outer" style="width:100%;height:100%;border-collapse:collapse;">
+    <tr><td style="padding:3mm 4mm;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr><td style="text-align:center;padding-bottom:1.5mm;">
+          <img src="${LOGO_DATA_URI}" style="height:7mm;">
+        </td></tr>
+      </table>
+      <p style="text-align:center;font-weight:bold;font-size:9pt;margin:0 0 1mm;font-family:'Times New Roman',serif;">
+        ГУП «Водоснабжение и водоотведение»
+      </p>
+      <p style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:'Times New Roman',serif;">АКТ</p>
+      <p style="text-align:center;font-size:8pt;margin:0 0 2mm;font-family:'Times New Roman',serif;">о выполнении работ (оказании услуг)</p>
+      <p style="text-align:right;font-size:8pt;margin:0 0 2mm;font-family:'Times New Roman',serif;">
+        № ${esc(r.orderNo)}&nbsp;&nbsp;&nbsp;«${day}» ${month} ${year} г.
+      </p>
+      <p style="font-size:8pt;margin:0 0 1mm;font-family:'Times New Roman',serif;">
+        «Исполнитель»: филиал ГУП «Водоснабжение и водоотведение» в г. Слободзея
+      </p>
+      <p style="font-size:8pt;margin:0 0 1mm;font-family:'Times New Roman',serif;">
+        «Заказчик»${r.account ? ' л/с '+esc(r.account) : ''} в лице ${esc(r.fio) || '_______________'}
+      </p>
+      <p style="font-size:8pt;margin:0 0 2mm;font-family:'Times New Roman',serif;">
+        Адрес: ${esc(addressFull) || '_______________'}
+      </p>
+      <p style="font-size:8pt;margin:0 0 1.5mm;font-family:'Times New Roman',serif;">
+        Настоящий акт составлен в том, что Исполнителем выполнены работы (оказаны услуги), а Заказчик принял следующие работы (услуги).
+      </p>
+      <table class="act-table" style="width:100%;border-collapse:collapse;font-size:7.5pt;font-family:'Times New Roman',serif;">
+        <tr>
+          <td style="border:1px solid #000;padding:1mm;text-align:center;width:5%;">№</td>
+          <td style="border:1px solid #000;padding:1mm;">Наименование услуги</td>
+          <td style="border:1px solid #000;padding:1mm;text-align:center;width:12%;">Кол-во</td>
+          <td style="border:1px solid #000;padding:1mm;text-align:center;width:14%;">Цена</td>
+          <td style="border:1px solid #000;padding:1mm;text-align:center;width:16%;">Сумма</td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #000;padding:1mm;text-align:center;">1</td>
+          <td style="border:1px solid #000;padding:1mm;">${esc(service)}</td>
+          <td style="border:1px solid #000;padding:1mm;text-align:center;">${qty}</td>
+          <td style="border:1px solid #000;padding:1mm;text-align:center;">${price}</td>
+          <td style="border:1px solid #000;padding:1mm;text-align:center;">${sum}</td>
+        </tr>
+        <tr>
+          <td style="border:1px solid #000;padding:1mm;" colspan="4">Итого</td>
+          <td style="border:1px solid #000;padding:1mm;text-align:center;">${sum}</td>
+        </tr>
+      </table>
+      <p style="font-size:7.5pt;margin:2mm 0 0;font-family:'Times New Roman',serif;">
+        Работа (услуга) выполнена в полном объеме, надлежащего качества, в оговоренные сроки и надлежащим образом.
+      </p>
+      <p style="font-size:7.5pt;margin:1mm 0 2mm;font-family:'Times New Roman',serif;">
+        Претензий со стороны Заказчика к Исполнителю не имеется.
+      </p>
+      <table style="width:100%;border-collapse:collapse;font-size:7.5pt;font-family:'Times New Roman',serif;">
+        <tr>
+          <td style="width:50%;font-weight:bold;">«Исполнитель»</td>
+          <td style="width:50%;font-weight:bold;">«Заказчик»</td>
+        </tr>
+        <tr><td style="padding-top:6mm;">____________________</td><td style="padding-top:6mm;">____________________</td></tr>
+        <tr><td style="padding-top:1mm;">Исполнитель работ ${esc(executor)}</td><td></td></tr>
+      </table>
+    </td></tr>
+  </table>`;
+}
+
+function buildActsDocument(list){
+  const pages = [];
+  for(let i=0;i<list.length;i+=4){
+    pages.push(list.slice(i,i+4));
+  }
+  let body = '';
+  pages.forEach((group, gi) => {
+    const cells = group.map(r=>`<td style="width:105mm;height:148.5mm;border:1px dashed #999;vertical-align:top;">${actHtml(r)}</td>`);
+    while(cells.length < 4) cells.push('<td style="width:105mm;height:148.5mm;border:1px dashed #999;"></td>');
+    body += `
+      <table style="width:210mm;height:297mm;border-collapse:collapse;table-layout:fixed;" cellspacing="0" cellpadding="0">
+        <tr>${cells[0]}${cells[1]}</tr>
+        <tr>${cells[2]}${cells[3]}</tr>
+      </table>`;
+    if(gi < pages.length-1) body += '<div style="page-break-after:always;"></div>';
+  });
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Акты ЖБО</title>
+  <style>
+    @page{ size:210mm 297mm; margin:0; }
+    body{ margin:0; }
+    table{ border-collapse:collapse; }
+  </style></head><body>${body}</body></html>`;
+}
+
+function generateActsWord(list){
+  list = list.filter(Boolean);
+  if(list.length===0){ alert('Нет строк для формирования актов.'); return; }
+  const htmlDoc = buildActsDocument(list);
+  const wordHtml = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+  <head><meta charset="utf-8">
+  <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
+  <style>@page WordSection1{size:210mm 297mm;margin:0mm;} div.WordSection1{page:WordSection1;} table{border-collapse:collapse;}</style>
+  </head><body><div class="WordSection1">${htmlDoc.match(/<body>([\s\S]*)<\/body>/)[1]}</div></body></html>`;
+  const blob = new Blob(['\ufeff', wordHtml], {type:'application/msword'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `Акты_ЖБО_${new Date().toISOString().slice(0,10)}.doc`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function previewActs(list){
+  list = list.filter(Boolean);
+  if(list.length===0){ alert('Нет строк для предпросмотра.'); return; }
+  const htmlDoc = buildActsDocument(list);
+  const w = window.open('', '_blank');
+  w.document.write(htmlDoc);
+  w.document.close();
+}
+
+/* ============ ИНИЦИАЛИЗАЦИЯ ============ */
+loadData();
+render();
+document.getElementById('setExecutor').addEventListener('change', saveData);
+document.getElementById('setPrice').addEventListener('change', saveData);
+document.getElementById('setService').addEventListener('change', saveData);
+</script>
+</body>
+</html>
